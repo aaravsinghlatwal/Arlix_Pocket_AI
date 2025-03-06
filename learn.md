@@ -171,10 +171,10 @@ a = 4
 ## storing and solving the fomulas
 we can store fomula as same as storing data in the memory -
 
-```formula -> var:fomula```
-like ```formula -> basket:apple+banana```
+```formulas -> var:fomula```
+like ```formulas -> basket:apple+banana```
 
-make sure that you use 'fomula' as feild!
+make sure that you use 'fomulas' as feild when creating and 'fomula' when using it
 
 and to use or test them like this:
 ```formula basket apple=2 banana=3?```
