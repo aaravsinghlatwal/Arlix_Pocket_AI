@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arlix Pocket AI</title>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: #1e1e2e; color: #ffffff; text-align: center; margin: 0; padding: 20px; }
+        textarea { width: 80%; height: 120px; padding: 10px; border-radius: 8px; border: none; background: #282a36; color: #ffffff; font-size: 16px; }
+        button { padding: 10px 20px; border: none; border-radius: 8px; background: #ff79c6; color: white; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #ff92d0; }
+        .output-container { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
+        .output-box { background: #282a36; padding: 15px; border-radius: 8px; text-align: left; width: 40%; }
+        pre { white-space: pre-wrap; word-wrap: break-word; font-size: 14px; color: #50fa7b; }
+    </style>
+</head>
+<body>
+    <h1 style="color: #ff79c6;">Arlix Pocket AI</h1>
+    <textarea id="inputData" placeholder="Enter classification, formula, or question (multi-line supported)"></textarea>
+    <br><br>
+    <button onclick="processInput()">Process</button>
+    <div class="output-container">
+        <div class="output-box">
+            <h3 style="color: #8be9fd;">Classification:</h3>
+            <pre id="classificationOutput"></pre>
+        </div>
+        <div class="output-box">
+            <h3 style="color: #f1fa8c;">Prediction:</h3>
+            <pre id="predictionOutput"></pre>
+        </div>
+    </div>
+    <script>
+        let aiMemory = JSON.parse(localStorage.getItem('aiData')) || { formulas: {}, classifications: {} };
+        // ANN1: 12 inputs, 15 hidden layers (12 neurons each), 12 outputs
+        let ann1 = {
+            inputSize: 12,
+            hiddenLayers: 15,
+            hiddenSize: 12,
+            outputSize: 12,
+            weights: [],
+            biases: [],
+            init: function () {
+                // Initialize weights and biases randomly
+                for (let i = 0; i < this.hiddenLayers; i++) {
+                    this.weights.push(new Array(this.hiddenSize).fill(0).map(() => Math.random()));
+                    this.biases.push(Math.random());
+                }
+                this.weights.push(new Array(this.outputSize).fill(0).map(() => Math.random()));
+                this.biases.push(Math.random());
+            },
+            train: function (input, output) {
+                // Simple training: store input-output pairs (for now)
+                this.trainingData = this.trainingData || [];
+                this.trainingData.push({ input, output });
+            },
+            predict: function (input) {
+                // Forward propagation
+                let activations = input;
+                for (let i = 0; i < this.hiddenLayers; i++) {
+                    activations = this.weights[i].map((w, j) => w * activations[j] + this.biases[i]);
+                    activations = activations.map(a => Math.max(0, a)); // ReLU activation
+                }
+                activations = this.weights[this.hiddenLayers].map((w, j) => w * activations[j] + this.biases[this.hiddenLayers]);
+                return activations;
+            }
+        };
+
+        // ANN2: 2 inputs, 1 hidden layer (3 neurons), 2 outputs
+        let ann2 = {
+            inputSize: 2,
+            hiddenLayers: 1,
+            hiddenSize: 3,
+            outputSize: 2,
+            weights: [],
+            biases: [],
+            init: function () {
+                // Initialize weights and biases randomly
+                for (let i = 0; i < this.hiddenLayers; i++) {
+                    this.weights.push(new Array(this.hiddenSize).fill(0).map(() => Math.random()));
+                    this.biases.push(Math.random());
+                }
+                this.weights.push(new Array(this.outputSize).fill(0).map(() => Math.random()));
+                this.biases.push(Math.random());
+            },
+            train: function (input, output) {
+                // Simple training: store input-output pairs (for now)
+                this.trainingData = this.trainingData || [];
+                this.trainingData.push({ input, output });
+            },
+            predict: function (input) {
+                // Forward propagation
+                let activations = input;
+                for (let i = 0; i < this.hiddenLayers; i++) {
+                    activations = this.weights[i].map((w, j) => w * activations[j] + this.biases[i]);
+                    activations = activations.map(a => Math.max(0, a)); // ReLU activation
+                }
+                activations = this.weights[this.hiddenLayers].map((w, j) => w * activations[j] + this.biases[this.hiddenLayers]);
+                return activations;
+            }
+        };
+
+        // Initialize ANNs
+        ann1.init();
+        ann2.init();
+        function processInput() {
+            let inputText = document.getElementById('inputData').value.trim();
+            if (!inputText) return;
+
+            let lines = inputText.split('\n');
+            let classification = {};
+            let predictions = [];
+            
+            lines.forEach(input => {
+                input = input.trim();
+                if (!input) return;
+                // ANN Commands
+                if (input.startsWith("/a ")) {
+                    let [training, output] = input.replace("/a ", "").split(":").map(s => s.trim());
+                    training = training.split(",").map(Number);
+                    output = output.split(",").map(Number);
+                    if (training.length === 12 && output.length === 12) {
+                        ann1.train(training, output);
+                        predictions.push(`ANN1 trained with input: ${training} and output: ${output}`);
+                    } else if (training.length === 2 && output.length === 2) {
+                        ann2.train(training, output);
+                        predictions.push(`ANN2 trained with input: ${training} and output: ${output}`);
+                    } else {
+                        predictions.push("Invalid input/output size for training.");
+                    }
+                } else if (input.startsWith("/t ")) {
+                    let testing = input.replace("/t ", "").split(",").map(Number);
+                    if (testing.length === 12) {
+                        let result = ann1.predict(testing);
+                        predictions.push(`ANN1 test result: ${result}`);
+                    } else if (testing.length === 2) {
+                        let result = ann2.predict(testing);
+                        predictions.push(`ANN2 test result: ${result}`);
+                    } else {
+                        predictions.push("Invalid input size for testing.");
+                    }
+                } else if (input.startsWith("/dl")) {
+                    ann1.trainingData = [];
+                    ann2.trainingData = [];
+                    predictions.push("ANN1 and ANN2 data cleared.");
+                }
+                // Process for Question Handling
+                if (input.endsWith("?")) {
+                    let question = input.replace("?", "").trim();
+                    if (question.startsWith("{")) {
+                        // Handle similarity, dissimilarity, or reconstruction
+                        if (question.includes("}:{")) {
+                            let [obj1, obj2] = question.split("}:{").map(s => s.replace("{", "").replace("}", "").trim());
+                            if (obj2.startsWith("!")) {
+                                // Dissimilarity detection
+                                obj2 = obj2.replace("!", "").trim();
+                                let result = findDissimilarities(obj1, obj2);
+                                predictions.push(`Dissimilarities between ${obj1} and ${obj2}:\n${JSON.stringify(result, null, 2)}`);
+                            } else {
+                                // Similarity detection
+                                let result = findSimilarities(obj1, obj2);
+                                predictions.push(`Similarities between ${obj1} and ${obj2}:\n${JSON.stringify(result, null, 2)}`);
+                            }
+                        } else if (question.includes(" - ")) {
+                            // Reconstruction
+                            let [components, target] = question.split(" - ").map(s => s.trim());
+                            let result = reconstructObject(components, target);
+                            predictions.push(`Reconstructed ${target}:\n${JSON.stringify(result, null, 2)}`);
+                        }
+                    } else if (question.startsWith("[")) {
+                        // Unsupervised learning for array-like input
+                        let items = question.replace("[", "").replace("]", "").split(",").map(s => s.trim());
+                        let result = unsupervisedLearning(items);
+                        predictions.push(`Unsupervised Learning:\n${JSON.stringify(result, null, 2)}`);
+                    } else {
+                        predictions.push(processQuestion(question));
+                    }
+                } else if (input.startsWith("del ")) {
+                    // Delete an object
+                    let obj = input.replace("del ", "").trim();
+                    deleteObject(obj);
+                    predictions.push(`Deleted ${obj} and all its properties.`);
+                } else if (input.includes("=")) {
+                    let [key, formula] = input.split("=").map(s => s.trim());
+                    let value = evaluateFormula(formula);
+                    aiMemory[key] = value;
+                    predictions.push(`${key} = ${value}`);
+                } else if (input.includes("->")) {
+                    let parts = input.split("->").map(s => s.trim());
+                    let obj = aiMemory;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        if (!obj[parts[i]]) obj[parts[i]] = {};
+                        obj = obj[parts[i]];
+                    }
+                    let [lastKey, value] = parts[parts.length - 1].split(":").map(s => s.trim());
+                    obj[lastKey] = value;
+                    classification = aiMemory;
+                } else if (input.startsWith("[")) {
+                    // Auto-classification or unsupervised learning
+                    let [items, categories] = input.split("]").map(s => s.trim());
+                    items = items.replace("[", "").split(",").map(s => s.trim());
+                    if (categories) {
+                        categories = categories.split(" ").map(s => s.trim());
+                        let result = autoClassify(items, categories);
+                        predictions.push(`Auto-Classification:\n${JSON.stringify(result, null, 2)}`);
+                    } else {
+                        let result = unsupervisedLearning(items);
+                        predictions.push(`Unsupervised Learning:\n${JSON.stringify(result, null, 2)}`);
+                    }
+                }
+            });
+            
+            localStorage.setItem('aiData', JSON.stringify(aiMemory));
+            document.getElementById('classificationOutput').innerText = JSON.stringify(classification, null, 2);
+            document.getElementById('predictionOutput').innerText = predictions.length ? predictions.join("\n") : "No prediction.";
+        }
+
+        function evaluateFormula(formula) {
+            let vars = Object.keys(aiMemory);
+            vars.forEach(v => {
+                let regex = new RegExp(`\\b${v}\\b`, 'g');
+                formula = formula.replace(regex, aiMemory[v]);
+            });
+            try {
+                return eval(formula);
+            } catch {
+                return "Invalid Formula";
+            }
+        }
+
+        // Process Question
+        function processQuestion(question) {
+            let questionParts = question.split(" ");
+            if (questionParts.length >= 2 && questionParts[0] === "formula") {
+                // Handle formula questions like "formula a apple=2 banana=3"
+                let formulaName = questionParts[1];
+                if (aiMemory.formulas && aiMemory.formulas[formulaName]) {
+                    let formula = aiMemory.formulas[formulaName];
+                    let variables = {};
+                    for (let i = 2; i < questionParts.length; i++) {
+                        let [varName, value] = questionParts[i].split("=").map(s => s.trim());
+                        variables[varName] = parseFloat(value);
+                    }
+                    let result = evaluateFormulaWithVariables(formula, variables);
+                    return `Result of formula ${formulaName} = ${result}`;
+                } else {
+                    return `Formula ${formulaName} not found.`;
+                }
+            } else if (questionParts.length == 2) {
+                let entity = questionParts[0];
+                let property = questionParts[1];
+
+                // Handle specific questions like "USA currency"
+                if (aiMemory[entity] && aiMemory[entity][property]) {
+                    return `${property} of ${entity} = ${aiMemory[entity][property]}`;
+                } else {
+                    return `I couldn't find ${property} for ${entity}.`;
+                }
+            } else if (questionParts.length == 1) {
+                let entity = questionParts[0];
+
+                // Handle general questions like "USA?"
+                if (aiMemory[entity]) {
+                    let result = [];
+                    for (let key in aiMemory[entity]) {
+                        result.push(`${key} of ${entity} = ${aiMemory[entity][key]}`);
+                    }
+                    return result.join("\n");
+                } else {
+                    return `I couldn't find any information about ${entity}.`;
+                }
+            }
+            return "I couldn't find an answer to your question.";
+        }
+
+        function evaluateFormulaWithVariables(formula, variables) {
+            let vars = Object.keys(variables);
+            vars.forEach(v => {
+                let regex = new RegExp(`\\b${v}\\b`, 'g');
+                formula = formula.replace(regex, variables[v]);
+            });
+            try {
+                return eval(formula);
+            } catch {
+                return "Invalid Formula";
+            }
+        }
+
+        // Auto-Classification
+        function autoClassify(items, categories) {
+            let result = {};
+            categories.forEach(category => {
+                result[category] = [];
+            });
+            items.forEach(item => {
+                let bestMatch = { category: null, similarity: -1 };
+                categories.forEach(category => {
+                    let similarity = stringSimilarity(item, category);
+                    if (similarity > bestMatch.similarity) {
+                        bestMatch.category = category;
+                        bestMatch.similarity = similarity;
+                    }
+                });
+                if (bestMatch.category) {
+                    result[bestMatch.category].push(item);
+                }
+            });
+            return result;
+        }
+
+        // Unsupervised Learning
+        function unsupervisedLearning(items) {
+            let clusters = {};
+            items.forEach(item => {
+                let foundCluster = false;
+                for (let cluster in clusters) {
+                    if (stringSimilarity(item, cluster) > 0.6) { // Threshold for similarity
+                        clusters[cluster].push(item);
+                        foundCluster = true;
+                        break;
+                    }
+                }
+                if (!foundCluster) {
+                    clusters[item] = [item];
+                }
+            });
+            return clusters;
+        }
+
+        // String Similarity (Levenshtein Distance)
+        function stringSimilarity(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            let matrix = [];
+            for (let i = 0; i <= b.length; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= a.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1, // Substitution
+                            matrix[i][j - 1] + 1, // Insertion
+                            matrix[i - 1][j] + 1 // Deletion
+                        );
+                    }
+                }
+            }
+            return 1 - (matrix[b.length][a.length] / Math.max(a.length, b.length));
+        }
+
+        // Find Similarities
+        function findSimilarities(obj1, obj2) {
+            let result = {};
+            if (aiMemory[obj1] && aiMemory[obj2]) {
+                for (let key in aiMemory[obj1]) {
+                    if (aiMemory[obj2][key] && aiMemory[obj1][key] === aiMemory[obj2][key]) {
+                        result[key] = aiMemory[obj1][key];
+                    }
+                }
+                // Store similarities in a new class
+                let simClass = `${obj1}_sim_${obj2}`;
+                aiMemory[simClass] = result;
+            }
+            return result;
+        }
+
+        // Find Dissimilarities
+        function findDissimilarities(obj1, obj2) {
+            let result = { [obj1]: {}, [obj2]: {} };
+            if (aiMemory[obj1] && aiMemory[obj2]) {
+                for (let key in aiMemory[obj1]) {
+                    if (!aiMemory[obj2][key]) {
+                        result[obj1][key] = aiMemory[obj1][key];
+                    }
+                }
+                for (let key in aiMemory[obj2]) {
+                    if (!aiMemory[obj1][key]) {
+                        result[obj2][key] = aiMemory[obj2][key];
+                    }
+                }
+                // Store dissimilarities in a new class
+                let disClass = `${obj1}_dis_${obj2}`;
+                aiMemory[disClass] = result;
+            }
+            return result;
+        }
+
+        // Delete Object
+        function deleteObject(obj) {
+            if (aiMemory[obj]) {
+                delete aiMemory[obj];
+                // Remove any similarity or dissimilarity classes involving the object
+                for (let key in aiMemory) {
+                    if (key.includes(`_sim_${obj}`) || key.includes(`_dis_${obj}`)) {
+                        delete aiMemory[key];
+                    }
+                }
+            }
+        }
+
+        // Reconstruct Object
+        function reconstructObject(components, target) {
+            let result = {};
+            components.split("}{").forEach(comp => {
+                comp = comp.replace("{", "").replace("}", "").trim();
+                if (aiMemory[comp]) {
+                    for (let key in aiMemory[comp]) {
+                        result[key] = aiMemory[comp][key];
+                    }
+                }
+            });
+            aiMemory[target] = result;
+            return result;
+        }
+    </script>
+</body>
+</html>
