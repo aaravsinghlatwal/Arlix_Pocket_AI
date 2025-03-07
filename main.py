@@ -403,4 +403,7 @@ predictionLabel.pack()
 predictionOutput = tk.Text(root, height=10, width=80, state=tk.DISABLED)
 predictionOutput.pack()
 
+credit = tk.Label(root, text="By Aarav Singh Latwal")
+credit.pack()
+
 root.mainloop()
