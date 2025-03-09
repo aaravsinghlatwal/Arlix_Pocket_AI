@@ -212,6 +212,76 @@ ANN2 test result: [2.6631964351627033, 1.4490407696735765]
 
 you may have differnt result
 
+## Find Similarity, Dissimilarity and Reconstruction
+you can find similarities between two feild
+like there are two feilds - India, USA
+both have a keys = ```currency, capital, location, etc.```
+
+with this we can find the similarities 
+
+and will store similar values of keys in ```India_sim_USA``` feild
+
+and when we tell to find dissimilarities between India and USA's values
+
+so it will store in ```India_dis_USA```
+
+we can also reconstruct:
+
+for example we delete India feild (sorry indians)
+
+so we can reconstruct it with similarites and dissimilarity and USA also.
+
+
+Similarity Detection:
+
+Input: {India}:{USA}?
+
+Output: Common properties between India and USA.
+
+Dissimilarity Detection:
+
+1. Input: ```{India}:!{USA}?```
+
+2. Output: Unique properties of India and USA.
+
+Deletion:
+
+1. Input: ```del India```
+
+1. Output: Deletes India and all its properties.
+
+Reconstruction:
+
+1. Input: ```{India_sim_USA}{India_dis_USA}{USA} - India?```
+
+1. Output: Reconstructs India using similarities, dissimilarities, and USA.
+
+Example Usage:
+Similarity Detection:
+
+1. Input: ```{India}:{USA}?``
+
+1. Output: Common properties between India and USA.
+
+Dissimilarity Detection:
+
+1. Input: ```{India}:!{USA}?```
+
+1. Output: Unique properties of India and USA.
+
+Deletion:
+
+1. Input: ```del India```
+
+1. Output: Deletes India and all its properties.
+
+Reconstruction:
+
+1. Input: ```{India_sim_USA}{India_dis_USA}{USA} - India?```
+
+1. Output: Reconstructs India.
+
+
 enjoy with your powerful pocket ai!
 
 the classification output tell what changes have made in the ai's memory
